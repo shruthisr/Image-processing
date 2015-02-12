@@ -1,0 +1,466 @@
+#include<iostream>
+#include<fstream>
+#include<math.h>
+using namespace std;
+int N;
+
+class cartoon
+{
+private:
+	int height;
+	int width;
+	double*** array_3Di;
+public:
+	cartoon();
+	~cartoon();
+	void setwidth(const int w){ width = w; }
+	void setheight(const int h){ height = h; }
+	
+	void imagedata(unsigned char *image)
+	{
+		long unsigned int g = 0;
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				for (int k = 0; k < 3; k++)
+				{
+					array_3Di[i][j][k] = image[g];
+					g++;
+				}
+			}
+		}
+	}
+	int getwidth(){
+		return width;
+	}
+	int getheight(){
+		return height;
+	}
+	void extension(double*** array_out, double***array_extended, int k, int N1);
+	void bilateral_filter(double*** array_out1, double*** array_gausian, int N, int N1, int k);
+
+};
+
+cartoon::cartoon()
+{
+	array_3Di = NULL;
+	width = -1;
+	height = -1;
+}
+
+cartoon::~cartoon()
+{
+	if (array_3Di)
+		delete array_3Di;
+}
+void cartoon::extension(double*** array_out, double***array_extended, int k, int N1)
+{
+		double **array_intermediate;
+		array_intermediate = new double *[height + (2 * N1)];
+		for (int i = 0; i < (height + (2 * N1)); i++)
+		{
+			array_intermediate[i] = new double[width + (2 * N1)];
+			for (int j = 0; j < (width + (2 * N1)); j++)
+			{
+				array_intermediate[i][j] = 0;
+
+			}
+		}
+
+		for (int i = 0; i < (height); i++)
+		{
+			for (int j = 0; j < (width); j++)
+			{
+				array_intermediate[i + N1][j + N1] = array_out[i][j][k];
+			}
+		}
+
+		for (int i = 0; i < N1; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				array_intermediate[N1 - 1 - i][j + N1 - 1] = array_out[i + 1][j][k];
+				array_intermediate[N1 + height + i][j + N1 - 1] = array_out[height - 2 - i][j][k];
+			}
+
+		}
+
+		for (int i = 0; i < (height + 2 * N1); i++)
+		{
+			for (int j = 0; j < N1; j++)
+			{
+				array_intermediate[i][N1 - 1 - j] = array_intermediate[i][j + N1 + 1];
+				array_intermediate[i][N1 + width + j] = array_intermediate[i][width - j - 2];
+			}
+		}
+
+
+		for (int i = 0; i < (height + (2 * N1)); i++)
+		{
+			for (int j = 0; j < (width + (2 * N1)); j++)
+			{
+				array_extended[i][j][k] = array_intermediate[i][j];
+			}
+		}
+		for (int i = 0; i < height; i++)
+		{
+			delete[] array_intermediate[i];
+		}
+		delete[] array_intermediate;
+	}
+void cartoon::bilateral_filter(double*** array_out1, double*** array_gausian, int N, int N1, int k)
+{
+
+	double **m;
+	m = new double *[N];
+	for (int i = 0; i < N; i++)
+	{
+		m[i] = new  double[N];
+		for (int j = 0; j < N; j++)
+		{
+			m[i][j] = 0;
+
+		}
+	}
+
+	double **p;
+	p = new double *[N];
+	for (int i = 0; i < N; i++)
+	{
+		p[i] = new  double[N];
+		for (int j = 0; j < N; j++)
+		{
+			p[i][j] = 0;
+
+		}
+	}
+
+	double **o;
+	o = new double *[N];
+	for (int i = 0; i < N; i++)
+	{
+		o[i] = new  double[N];
+		for (int j = 0; j < N; j++)
+		{
+			o[i][j] = 0;
+
+		}
+	}
+	float**q;
+	q = new float *[N];
+	for (int i = 0; i < N; i++)
+	{
+		q[i] = new  float[N];
+		for (int j = 0; j < N; j++)
+		{
+			q[i][j] = 0;
+
+		}
+	}
+
+	int r = 0;
+
+	int l = 0;
+	for (int c = 0; c < (height); c = c + (1))
+	{
+		for (int d = 0; d < (width); d = d + (1))
+
+		{
+
+			int n = 0;
+			for (int i = c; i < N + c; i++)
+			{
+				for (int j = d; j < N + d; j++)
+				{
+					o[n][l] = array_out1[i][j][k];
+					l++;
+				}
+				n++; l = 0;
+			}
+
+			for (int i = 0; i < N; i++)
+			{
+				for (int j = 0; j < N; j++)
+				{
+					p[i][j] = exp(-(((o[N1][N1] - o[i][j])*(o[N1][N1] - o[i][j])) / (2.0 * 225.0)));
+				}
+			}
+			float t = -N1; float r = -N1;
+			for (int i = 0; i < N; i++)
+			{
+				for (int j = 0; j < N; j++)
+				{
+					m[i][j] = exp(-(((t*t) + (r*r)) / (2.0 * 1.0)));
+					t++;
+				}
+				r++; t = -N1;
+			}
+
+			for (int i = 0; i < N; i++)
+			{
+				for (int j = 0; j < N; j++)
+				{
+					q[i][j] = m[i][j] * o[i][j] * p[i][j];
+				}
+			}
+			double sum = 0; double  sum1 = 0;
+			for (int i = 0; i < N; i++)
+			{
+				for (int j = 0; j < N; j++)
+				{
+					sum = sum + q[i][j];
+					sum1 = sum1 + (m[i][j] * p[i][j]);
+				}
+			}
+			unsigned char sum2 = 0;
+			sum2 = (unsigned char)(sum / sum1);
+
+			array_gausian[c][d][k] = sum2;
+		}
+	}
+	for (int i = 0; i < N; i++)
+	{
+		delete[] m[i];
+	}
+	delete[] m;
+
+	for (int i = 0; i < N; i++)
+	{
+		delete[] q[i];
+	}
+	delete[] q;
+
+	for (int i = 0; i < N; i++)
+	{
+		delete[] o[i];
+	}
+	delete[] o;
+
+}
+
+int main(int argc, char *argv[])
+{
+	cartoon a;
+	streampos size;
+	int h, w;
+	w = atoi (argv[2]);
+	h = atoi(argv[3]);
+	a.setwidth(w);
+	a.setheight(h);
+	unsigned char  *array_1Di;
+	double ***array_3Di, ***array_out;
+
+	array_3Di = new double **[h];
+	for (int i = 0; i < h; i++)
+	{
+		array_3Di[i] = new double *[w];
+		for (int j = 0; j < w; j++)
+		{
+			array_3Di[i][j] = new double[3];
+			for (int k = 0; k < 3; k++)
+			{
+				array_3Di[i][j][k] = 0;
+			}
+		}
+	}
+
+	ifstream myfile(argv[1], ios::in | ios::binary | ios::ate);
+	if (!myfile.is_open())
+	{
+		cout << "the file doesnt exists";
+		exit(1);
+	}
+	size = myfile.tellg();
+	cout << size;
+	array_1Di = new unsigned char[h * w * 3];
+	myfile.seekg(0, ios::beg);
+	myfile.read(reinterpret_cast<char *>(array_1Di), (h* w * 3));
+
+	long unsigned int g = 0;
+	for (int i = 0; i < h; i++)
+	{
+		for (int j = 0; j < w; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				array_3Di[i][j][k] = array_1Di[g];
+				g++;
+			}
+		}
+	}
+
+	cout << "enter the value of N from the following: 3,5,7,9,11";
+	cin >> N;
+	int N1;
+	switch (N){
+	case 3:N1 = 1;
+		break;
+	case 5: N1 = 2;
+		break;
+	case 7: N1 = 3;
+		break;
+	case 9:N1 = 4;
+		break;
+	case 11: N1 = 5;
+		break;
+	default: exit(1);
+	}
+
+	double ***array_extended;
+	array_extended = new double **[(h + (2 * N1))];
+	for (int i = 0; i < (h + (2 * N1)); i++)
+	{
+		array_extended[i] = new double *[(w + (2 * N1))];
+		for (int j = 0; j < (w + (2 * N1)); j++)
+		{
+			array_extended[i][j] = new double[3];
+			for (int k = 0; k < 3; k++)
+			{
+				array_extended[i][j][k] = 0;
+			}
+		}
+	}
+
+
+
+	double ***array_bilateral;
+	array_bilateral = new double **[(h)];
+	for (int i = 0; i < (h); i++)
+	{
+		array_bilateral[i] = new double *[(w)];
+		for (int j = 0; j < (w); j++)
+		{
+			array_bilateral[i][j] = new double[3];
+			for (int k = 0; k < 3; k++)
+			{
+				array_bilateral[i][j][k] = 0;
+			}
+		}
+	}
+
+	a.extension(array_3Di, array_extended, 0, N1);
+	a.extension(array_3Di, array_extended, 1, N1);
+	a.extension(array_3Di, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	a.extension(array_bilateral, array_extended, 0, N1);
+	a.extension(array_bilateral, array_extended, 1, N1);
+	a.extension(array_bilateral, array_extended, 2, N1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 0);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 1);
+	a.bilateral_filter(array_extended, array_bilateral, N, N1, 2);
+
+	for (int i = 0; i < h; i++)
+	{
+		for (int j = 0; j < w; j++)
+		{
+			delete[] array_extended[i][j];
+		}
+		delete[] array_extended[i];
+	}
+	delete[] array_extended;
+
+	unsigned char *array_1D;
+	array_1D = new unsigned char[(w)*(h)* 3];
+	unsigned int c = 0;
+
+	for (int i = 0; i < h; i++)
+	{
+		for (int j = 0; j < w; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				array_1D[c] = array_bilateral[i][j][k];
+				c++;
+			}
+		}
+	}
+	for (int i = 0; i < h; i++)
+	{
+		for (int j = 0; j < w; j++)
+		{
+			delete[] array_bilateral[i][j];
+		}
+		delete[] array_bilateral[i];
+	}
+	delete[] array_bilateral;
+	ofstream myfile_out(argv[4], ios::out | ios::binary | ios::trunc);
+	if (myfile_out.is_open())
+	{
+		size = myfile.tellg();
+
+
+		myfile_out.write(reinterpret_cast<char *>(array_1D), ((h)* (w)* 3));
+
+
+
+
+		myfile_out.close();
+		myfile.close();
+		cout << "the entire file content is copied";
+
+		delete[] array_1Di;
+		delete[] array_1D;
+	}
+	else
+		cout << "unable to open the file";
+
+
+	system("pause");
+	return 0;
+}
